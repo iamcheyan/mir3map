@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MUD3 英雄杀与 Godot 移植版地图、NPC、怪物刷新及连接数据的可追溯对照审计。">
+  <meta name="theme-color" content="#102a3a">
+  <title>MUD3 × Godot 地图数据审计</title>
+  <link rel="stylesheet" href="assets/report.css">
+  <script src="assets/report.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到报告正文</a>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="地图数据审计首页"><span class="wordmark-mark">M3</span><span>MAP DATA<br><b>AUDIT</b></span></a>
+    <nav class="primary-nav" aria-label="报告导航">
+      <a href="#overview">结论</a>
+      <a href="#maps">地图索引</a>
+      <a href="#comparisons">逐项比较</a>
+      <a href="#website">网站辅助</a>
+      <a href="#method">方法与口径</a>
+</nav>
+    <a class="header-download" href="data/audit.json" download>下载原始 JSON <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="report-title">
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> MIR3 / DATA RECONCILIATION <span id="db-version" class="version-chip">读取快照中</span></p>
+        <h1 id="report-title">MUD3 英雄杀<br><span>与 Godot 地图数据</span></h1>
+        <p class="hero-lede">只审数据，不审地图文件、格子或渲染。逐条对照地图身份、地图连接、NPC 与怪物刷新，并保留每条来源引用。</p>
+        <div class="hero-meta"><span>三套数据源</span><i></i><span>稳定地图 ID 优先</span><i></i><span>可下载、可复核</span></div>
+      </div>
+      <aside class="verdict-panel" id="overview" aria-live="polite">
+        <p class="verdict-kicker">审计结论 / 本次字段范围</p>
+        <p class="verdict-value" id="verdict-value">正在读取数据</p>
+        <p class="verdict-copy" id="verdict-copy">正在核对客户端快照与逐项比较。</p>
+        <div class="verdict-foot"><span class="verdict-dot"></span><span id="data-status">加载审计快照…</span></div>
+      </aside>
+    </section>
+
+    <section class="overview section-wrap" aria-labelledby="overview-title">
+      <div class="section-heading">
+        <div><p class="eyebrow eyebrow-light">01 / EXECUTIVE READOUT</p><h2 id="overview-title">先看证据，再看差异</h2></div>
+        <p class="section-aside">“完全一致”只针对本次明确覆盖的字段；缺少映射或另一侧记录，不等于游戏运行时不存在。</p>
+      </div>
+      <div class="stats-grid" id="stats-grid" aria-live="polite"></div>
+      <div class="status-overview">
+        <div class="status-overview-heading"><h3>逐项比较结果</h3><span id="comparison-total">—</span></div>
+        <div class="status-counts" id="status-counts"></div>
+      </div>
+    </section>
+
+    <section class="section-wrap map-section" id="maps" aria-labelledby="maps-title">
+      <div class="section-heading">
+        <div><p class="eyebrow eyebrow-light">02 / MAP INDEX</p><h2 id="maps-title">逐地图关联索引</h2></div>
+        <p class="section-aside">按稳定地图 ID / 文件名分组；名称仅用于检索。没有唯一 ID 的记录不会靠近似地图名强行合并。</p>
+      </div>
+      <div class="explorer-toolbar">
+        <label class="search-field"><span class="visually-hidden">搜索地图、NPC、怪物或来源引用</span><span class="search-icon" aria-hidden="true">⌕</span><input id="map-search" type="search" placeholder="搜地图 ID、名称、NPC、怪物或引用…" autocomplete="off"></label>
+        <label class="select-field"><span class="visually-hidden">按地图身份状态筛选</span><select id="map-status"><option value="">所有身份状态</option></select></label>
+        <button class="quiet-button" id="map-reset" type="button">清除筛选</button>
+      </div>
+      <div class="results-bar"><p id="map-count" aria-live="polite">等待数据</p><p class="results-hint">展开地图卡片可查看 MUD3 / Godot 来源记录</p></div>
+      <div class="map-grid" id="map-results" aria-live="polite"></div>
+      <button class="load-more" id="map-more" type="button" hidden>继续显示地图</button>
+      <p class="empty-state" id="map-empty" hidden>没有符合条件的地图或关联记录。</p>
+    </section>
+
+    <section class="section-wrap comparison-section" id="comparisons" aria-labelledby="comparisons-title">
+      <div class="section-heading">
+        <div><p class="eyebrow eyebrow-light">03 / FIELD-BY-FIELD</p><h2 id="comparisons-title">逐项差异与待证记录</h2></div>
+        <p class="section-aside">每一项都附 MUD3、Godot 或网站数据引用；状态计数与明细逐条闭合。</p>
+      </div>
+      <div class="explorer-toolbar comparison-toolbar">
+        <label class="search-field"><span class="visually-hidden">搜索比较项</span><span class="search-icon" aria-hidden="true">⌕</span><input id="comparison-search" type="search" placeholder="搜字段、地图、来源行号或名称…" autocomplete="off"></label>
+        <label class="select-field"><span class="visually-hidden">按实体类型筛选</span><select id="comparison-type"><option value="">所有实体类型</option></select></label>
+        <label class="select-field"><span class="visually-hidden">按比较状态筛选</span><select id="comparison-status"><option value="">所有比较状态</option></select></label>
+      </div>
+      <div class="results-bar"><p id="comparison-count" aria-live="polite">等待数据</p><span class="confidence-note">映射置信度仅表示本条匹配依据强弱，不是数据正确率。</span></div>
+      <div class="comparison-list" id="comparison-results" aria-live="polite"></div>
+      <button class="load-more" id="comparison-more" type="button" hidden>继续显示比较项</button>
+      <p class="empty-state" id="comparison-empty" hidden>没有符合条件的比较项。</p>
+    </section>
+
+    <section class="section-wrap unassigned-section" aria-labelledby="unassigned-title">
+      <div class="section-heading compact-heading">
+        <div><p class="eyebrow eyebrow-light">04 / UNASSIGNED</p><h2 id="unassigned-title">无法关联到地图的客户端刷怪</h2></div>
+        <p class="section-aside">System.db 中 Region / MapFileName 缺失的记录单独保留，不归入 source_missing。</p>
+      </div>
+      <div id="unassigned-list" class="unassigned-list"></div>
+    </section>
+
+    <section class="section-wrap website-section" id="website" aria-labelledby="website-title">
+      <div class="section-heading compact-heading">
+        <div><p class="eyebrow eyebrow-light">05 / WEBSITE AUXILIARY</p><h2 id="website-title">网站地图目录与待核对候选</h2></div>
+        <p class="section-aside">官网怪物分类只辅助名称解释；map.json / map_area.json 研究快照不是客户端权威源，不参与地图 ID 匹配。</p>
+      </div>
+      <div class="website-stats" id="website-stats"></div>
+      <div class="website-toolbar">
+        <label class="search-field"><span class="visually-hidden">搜索网站地图目录和研究候选</span><span class="search-icon" aria-hidden="true">⌕</span><input id="website-search" type="search" placeholder="搜网站地图名、候选 ID 或研究引用…" autocomplete="off"></label>
+        <label class="select-field"><span class="visually-hidden">筛选网站地图辅助数据类型</span><select id="website-kind"><option value="">所有网站地图辅助</option></select></label>
+      </div>
+      <section class="catalog-block" aria-labelledby="catalog-title">
+        <h3 id="catalog-title">官网地图区块目录 <span>maps.json · 仅名称 / 分类</span></h3>
+        <div class="website-catalog" id="website-area-catalog"></div>
+      </section>
+      <div class="results-bar"><p id="website-count" aria-live="polite">等待数据</p><p class="results-hint">研究候选只展示其原始状态与引用，不升级为匹配结论</p></div>
+      <div class="website-candidate-list" id="website-candidates" aria-live="polite"></div>
+      <button class="load-more" id="website-more" type="button" hidden>继续显示候选</button>
+      <p class="empty-state" id="website-empty" hidden>没有符合条件的网站地图辅助记录。</p>
+    </section>
+
+    <section class="section-wrap issues-section" aria-labelledby="issues-title">
+      <div class="section-heading compact-heading">
+        <div><p class="eyebrow eyebrow-light">06 / PARSER REVIEW</p><h2 id="issues-title">解析异常与人工复核</h2></div>
+        <p class="section-aside">不丢弃异常行；只公开来源引用、行长度与 SHA-256 指纹，不公开原始配置行。</p>
+      </div>
+      <div class="issue-toolbar">
+        <label class="search-field"><span class="visually-hidden">搜索解析异常</span><span class="search-icon" aria-hidden="true">⌕</span><input id="issue-search" type="search" placeholder="搜异常类型、来源行号或候选 ID…" autocomplete="off"></label>
+      </div>
+      <div class="issue-summary" id="issue-summary"></div>
+      <div class="issue-list" id="issue-list"></div>
+      <p class="empty-state" id="issue-empty" hidden>没有符合条件的解析异常。</p>
+    </section>
+
+    <section class="section-wrap source-section" aria-labelledby="sources-title">
+      <div class="section-heading compact-heading">
+        <div><p class="eyebrow eyebrow-light">07 / SNAPSHOT MANIFEST</p><h2 id="sources-title">来源版本与指纹</h2></div>
+        <p class="section-aside">以实际读取文件的 SHA-256、大小、文件时间和编码标识本次快照；不写入本机路径。</p>
+      </div>
+      <div class="table-scroll"><table class="manifest-table"><thead><tr><th>来源</th><th>文件</th><th>编码</th><th>大小</th><th>文件时间（UTC）</th><th>SHA-256</th></tr></thead><tbody id="manifest-body"></tbody></table></div>
+      <p class="snapshot-note" id="snapshot-note"></p>
+    </section>
+
+    <section class="section-wrap method-section" id="method" aria-labelledby="method-title">
+      <div class="section-heading">
+        <div><p class="eyebrow eyebrow-light">08 / METHOD &amp; DICTIONARY</p><h2 id="method-title">方法、边界与数据字典</h2></div>
+        <p class="section-aside">对照的是当前快照中的结构化数据，不是对完整游戏行为的声明。</p>
+      </div>
+      <div class="method-grid">
+        <article class="method-card method-card-wide">
+          <span class="method-number">A</span><h3>权威数据流</h3>
+          <p>Godot 运行时由 <code>NetworkManager</code> 加载 <code>System.db</code>；本次使用 Zircon 同一 MirDB 模型只读导出 <code>MapInfo</code>、<code>NPCInfo</code>、<code>MovementInfo</code> 与 <code>RespawnInfo</code>。`DataLayer` 的 frame/effect/sound JSON 不是地图主数据。</p>
+          <p>MUD3 地图定义与有向坐标连接来自 <code>MapInfo.txt</code>；刷怪按 <code>Mongen.txt</code> 的 loadgen 顺序读取 <code>Mon_Def/*.gen</code>；NPC 索引来自 <code>Merchant.txt</code>。网站怪物清单与地图目录仅作辅助，不替代游戏源数据。</p>
+        </article>
+        <article class="method-card"><span class="method-number">B</span><h3>地图身份</h3><p>MUD3 方括号首字段 ↔ Godot <code>MapInfo.FileName</code>。仅唯一稳定 ID 匹配；大小写折叠记录为格式差异。地图名、图片、研究快照不建立身份映射。</p></article>
+        <article class="method-card"><span class="method-number">C</span><h3>NPC 与怪物名称</h3><p>Godot 中文名只采用实际 <code>db_names.json</code> zh 翻译；精确唯一时才与 MUD3 名称关联。网站怪物分类只作名称解释，不证明 MUD3 刷新事实。</p></article>
+        <article class="method-card"><span class="method-number">D</span><h3>连接与坐标</h3><p>比较 MUD3 <code>MapInfo.txt</code> 有向地图对与 Godot <code>MovementInfo</code> 的源 / 目标地图 ID。MUD3 坐标点和 Godot Region 结构不同；不计算区域质心、不读取地图格子。</p></article>
+        <article class="method-card"><span class="method-number">E</span><h3>空值与去重</h3><p>源行 / 数据库 Index 逐条保留，不对 NPC、Gen 行或 Movement 去重；重复 load 也保留。只有有向地图对集合计数采用去重口径。false、0、空值和无记录分开呈现。</p></article>
+        <article class="method-card"><span class="method-number">F</span><h3>置信度与缺失</h3><p>置信度描述匹配规则，不表示正确概率。<code>source_missing</code> 只指本次已加载数据的一侧无同键记录；未映射、缺少 Region 或解析异常不能推导游戏里不存在。</p></article>
+      </div>
+      <div class="dictionary-wrap">
+        <h3>字段字典</h3>
+        <div class="table-scroll"><table class="dictionary-table"><thead><tr><th>实体 / 字段</th><th>含义与来源</th><th>比较边界</th></tr></thead><tbody>
+          <tr><td><code>map_id / FileName</code></td><td>MUD3 MapInfo 方括号首字段；Godot MapInfo 文件名身份键。</td><td>大小写折叠作唯一候选；名称不替代 ID。</td></tr>
+          <tr><td><code>source_ref</code></td><td>源文件行号、JSON Pointer 或 System.db 表 + Index。</td><td>用于定位公开的来源记录；不包含私有绝对路径。</td></tr>
+          <tr><td><code>numeric_parameters</code></td><td>MUD3 Gen 刷新行末尾的三个原始数值。</td><td>保留原值；语义 / 单位未从本次源文件证实。</td></tr>
+          <tr><td><code>Region / PointCount</code></td><td>Godot NPC、Movement、Respawn 使用的 Region 元数据。</td><td>不将点集转换为 MUD3 坐标；Region 缺失时单独列为未分配。</td></tr>
+          <tr><td><code>mapping_status</code></td><td>地图卡片上的身份映射状态。</td><td>不等同于卡片全部字段一致；逐字段结论看比较表。</td></tr>
+          <tr><td><code>comparison.status</code></td><td>identical、explicit_difference、format_only、mapping_unverified、source_missing。</td><td>每个计数都应等于同状态明细行数。</td></tr>
+          <tr><td><code>website_ref</code></td><td>网站 JSON Pointer；怪物清单仅提供精确名称 / 分类辅助。</td><td>网站 map/map_area 研究快照标为待复核候选，不参与身份匹配。</td></tr>
+        </tbody></table></div>
+      </div>
+    </section>
+
+    <section class="download-band" aria-labelledby="download-title">
+      <div><p class="eyebrow">TAKE THE RECORD WITH YOU</p><h2 id="download-title">复核不依赖网页</h2><p>原始对照、逐项 CSV 与解析异常均可直接下载。</p></div>
+      <div class="download-actions"><a href="data/audit.json" download>完整审计 JSON <span>↗</span></a><a href="data/comparisons.csv" download>逐项比较 CSV <span>↗</span></a><a href="data/issues.json" download>解析异常 JSON <span>↗</span></a></div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>仅限结构化数据对照 · 不包含 .map 文件或地图资源</span><a href="#top">返回顶部 ↑</a></footer>
+  <noscript><p class="noscript-note">此报告需要启用 JavaScript 以读取随仓库发布的静态审计 JSON；无需账号、后端或第三方服务。</p></noscript>
+</body>
+</html>
